@@ -1,0 +1,31 @@
+[package]
+name = "luxafor"
+description = "Library, and CLI, for Luxafor lights via webhooks."
+version = "0.1.0"
+authors = ["Simon Johnston <johnstonskj@gmail.com>"]
+edition = "2018"
+license = "MIT"
+readme = "README.md"
+publish = true
+default-run = "lux"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+all-features = true
+
+[features]
+command-line = ["pretty_env_logger", "structopt"]
+
+[[bin]]
+name = "lux"
+path = "src/bin/main.rs"
+required-features = ["command-line"]
+
+[dependencies]
+log = "0.4.11"
+error-chain = "0.12.2"
+reqwest = { version = "0.10", features = ["blocking", "json"] }
+
+#[feature-dependencies]
+structopt = { version = "0.3.14", optional = true }
+pretty_env_logger = { version = "0.4.0", optional = true }
