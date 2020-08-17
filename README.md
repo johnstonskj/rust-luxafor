@@ -2,7 +2,7 @@
 
 Library, and CLI, for [Luxafor](https://luxafor.com/products/) lights via webhooks.
 
-![Rust](https://github.com/johnstonskj/luxafor/workflows/Rust/badge.svg)
+![Rust](https://github.com/johnstonskj/rust-luxafor/workflows/Rust/badge.svg)
 ![Minimum Rust Version](https://img.shields.io/badge/Min%20Rust-1.40-green.svg)
 [![crates.io](https://img.shields.io/crates/v/luxafor.svg)](https://crates.io/crates/luxafor)
 [![docs.rs](https://docs.rs/luxafor/badge.svg)](https://docs.rs/luxafor)
