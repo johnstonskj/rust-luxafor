@@ -17,19 +17,21 @@ as well as the [Bluetooth](https://luxafor.com/bluetooth-busy-light-availability
 The following shows the command line tool setting the color to red.
 
 ```bash
-❯ lux solid red -d 2a0f2c73b72
+❯ lux -d 2a0f2c73b72 solid red
 ```
 
-The following shows the command line tool setting the color to a blinking green.
+The following shows the command line tool setting the color to a blinking green. This example uses the environment
+variable `LUX_DEVICE` to save repeating the device identifier on each call.
 
 ```bash
-❯ lux blink green -d 2a0f2c73b72
+❯ export LUX_DEVICE=2a0f2c73b72
+❯ lux blink green
 ```
 
 The following shows the command line tool turning the light off.
 
 ```bash
-❯ lux -vvv off -d 2a0f2c73b72
+❯ lux -vvv -d 2a0f2c73b72 off
  INFO  luxafor > Setting the color of device '2a0f2c73b72e' to 000000
  INFO  luxafor > call successful
 ```

@@ -12,6 +12,10 @@ pub(crate) struct CommandLine {
     #[structopt(long, short = "v", parse(from_occurrences))]
     verbose: i8,
 
+    /// The device identifier
+    #[structopt(long, short, env = "LUX_DEVICE")]
+    device: DeviceID,
+
     #[structopt(subcommand)]
     cmd: SubCommand,
 }
@@ -20,40 +24,24 @@ pub(crate) struct CommandLine {
 pub(crate) enum SubCommand {
     /// Set the light to a to a solid color
     Solid {
-        /// The device identifier
-        #[structopt(long, short)]
-        device: DeviceID,
-
         /// The color to set
         #[structopt(name = "COLOR")]
         color: SolidColor,
     },
     /// Set the light to a to a blinking color
     Blink {
-        /// The device identifier
-        #[structopt(long, short)]
-        device: DeviceID,
-
         /// The color to set
         #[structopt(name = "COLOR")]
         color: SolidColor,
     },
     /// Set the light to a to a pre-defined pattern
     Pattern {
-        /// The device identifier
-        #[structopt(long, short)]
-        device: DeviceID,
-
         /// The pattern to set
         #[structopt(long, short)]
         pattern: Pattern,
     },
     /// Turn the light off
-    Off {
-        /// The device identifier
-        #[structopt(long, short)]
-        device: DeviceID,
-    },
+    Off,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -71,10 +59,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     match args.cmd {
-        SubCommand::Solid { device, color } => set_solid_color(device, color, false),
-        SubCommand::Blink { device, color } => set_solid_color(device, color, true),
-        SubCommand::Pattern { device, pattern } => set_pattern(device, pattern),
-        SubCommand::Off { device } => turn_off(device),
+        SubCommand::Solid { color } => set_solid_color(args.device, color, false),
+        SubCommand::Blink { color } => set_solid_color(args.device, color, true),
+        SubCommand::Pattern { pattern } => set_pattern(args.device, pattern),
+        SubCommand::Off => turn_off(args.device),
     }?;
 
     Ok(())
