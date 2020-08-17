@@ -1,4 +1,4 @@
-#Crate luxafor
+# Crate luxafor
 
 Library, and CLI, for [Luxafor](https://luxafor.com/products/) lights via webhooks.
 
