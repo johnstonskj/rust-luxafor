@@ -4,8 +4,8 @@ Library, and CLI, for [Luxafor](https://luxafor.com/products/) lights via webhoo
 
 ![Rust](https://github.com/johnstonskj/luxafor/workflows/Rust/badge.svg)
 ![Minimum Rust Version](https://img.shields.io/badge/Min%20Rust-1.40-green.svg)
-[![crates.io](https://img.shields.io/crates/v/atelier_core.svg)](https://crates.io/crates/atelier_core)
-[![docs.rs](https://docs.rs/atelier_core/badge.svg)](https://docs.rs/atelier_core)
+[![crates.io](https://img.shields.io/crates/v/luxafor.svg)](https://crates.io/crates/luxafor)
+[![docs.rs](https://docs.rs/luxafor/badge.svg)](https://docs.rs/luxafor)
 ![MIT License](https://img.shields.io/badge/license-mit-118811.svg)
 [![GitHub stars](https://img.shields.io/github/stars/johnstonskj/luxafor.svg)](https://github.com/johnstonskj/luxafor/stargazers)
 
