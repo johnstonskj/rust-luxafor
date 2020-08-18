@@ -2,9 +2,8 @@
 Implementation of the Device trait for USB connected lights.
 */
 
-use crate::{Device, DeviceIdentifier, Pattern, SolidColor};
+use crate::{Device, Pattern, SolidColor};
 use hidapi::{HidApi, HidDevice};
-use std::fmt::{Display, Formatter};
 
 // ------------------------------------------------------------------------------------------------
 // Public Types
@@ -19,18 +18,12 @@ pub struct USBDeviceDiscovery {
 }
 
 ///
-/// The device identifier for a USB connected light.
-///
-#[derive(Clone, Debug)]
-pub struct USBDeviceID(String);
-
-///
 /// The device implementation for a USB connected light.
 ///
 #[allow(missing_debug_implementations)]
 pub struct USBDevice<'a> {
     hid_device: HidDevice<'a>,
-    id: USBDeviceID,
+    id: String,
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -83,16 +76,6 @@ const PATTERN_RAINBOW_WAVE: u8 = 8;
 // Implementations
 // ------------------------------------------------------------------------------------------------
 
-impl Display for USBDeviceID {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl DeviceIdentifier for USBDeviceID {}
-
-// ------------------------------------------------------------------------------------------------
-
 impl USBDeviceDiscovery {
     ///
     /// Construct a new discovery object, this initializes the USB HID interface and thus can fail.
@@ -120,8 +103,8 @@ impl USBDeviceDiscovery {
 // ------------------------------------------------------------------------------------------------
 
 impl<'a> Device for USBDevice<'a> {
-    fn id(&self) -> &dyn DeviceIdentifier {
-        &self.id
+    fn id(&self) -> String {
+        self.id.clone()
     }
 
     fn turn_off(&self) -> crate::error::Result<()> {
@@ -189,7 +172,7 @@ impl<'a> Device for USBDevice<'a> {
 
 impl<'a> USBDevice<'a> {
     fn new(hid_device: HidDevice<'a>) -> crate::error::Result<USBDevice<'a>> {
-        let id = USBDeviceID(format!(
+        let id = format!(
             "{}::{}::{}",
             hid_device
                 .get_manufacturer_string()
@@ -200,7 +183,7 @@ impl<'a> USBDevice<'a> {
             hid_device
                 .get_serial_number_string()
                 .unwrap_or("<unknown>".to_string())
-        ));
+        );
         Ok(Self { hid_device, id })
     }
 }

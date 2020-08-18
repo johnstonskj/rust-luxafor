@@ -1,10 +1,13 @@
 /*!
 Library, and CLI, for [Luxafor](https://luxafor.com/products/) lights via either USB or webhooks.
 
-This has been
-tested with the USB connected [flag](https://luxafor.com/flag-usb-busylight-availability-indicator/)
-as well as the [Bluetooth](https://luxafor.com/bluetooth-busy-light-availability-indicator/) lights.
+The main entry point for clients is the trait [Device](trait.Device.html) that has implementations
+for USB connected devices such as the [flag](https://luxafor.com/flag-usb-busylight-availability-indicator/)
+as well as webhooks for both the flag and [bluetooth](https://luxafor.com/bluetooth-busy-light-availability-indicator/)
+lights.
 
+Each connection has its own discovery or connection methods but will provide a `Device` implementation
+for the manipulation of the light state.
 
 # API Examples
 
@@ -161,18 +164,13 @@ pub enum Pattern {
 }
 
 ///
-/// Trait describing a device identifier, basically you just need to be able to `to_string()` it.
-///
-pub trait DeviceIdentifier: Display {}
-
-///
 /// A trait implemented by different access methods to control a light.
 ///
 pub trait Device {
     ///
     /// Return the identifier for the device.
     ///
-    fn id(&self) -> &dyn DeviceIdentifier;
+    fn id(&self) -> String;
 
     ///
     /// Turn the light off.

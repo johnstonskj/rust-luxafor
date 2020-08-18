@@ -9,8 +9,12 @@ Library, and CLI, for [Luxafor](https://luxafor.com/products/) lights via either
 ![MIT License](https://img.shields.io/badge/license-mit-118811.svg)
 [![GitHub stars](https://img.shields.io/github/stars/johnstonskj/rust-luxafor.svg)](https://github.com/johnstonskj/rust-luxafor/stargazers)
 
-This has been tested with the USB connected [flag](https://luxafor.com/flag-usb-busylight-availability-indicator/)
-as well as the [Bluetooth](https://luxafor.com/bluetooth-busy-light-availability-indicator/) lights.
+The main entry point for clients is the trait `Device` that has implementations for USB connected devices such as the 
+[flag](https://luxafor.com/flag-usb-busylight-availability-indicator/) as well as webhooks for both the flag and 
+[bluetooth](https://luxafor.com/bluetooth-busy-light-availability-indicator/) lights.
+
+Each connection has its own discovery or connection methods but will provide a `Device` implementation
+for the manipulation of the light state.
 
 ## API Examples
 
@@ -75,6 +79,10 @@ The following shows the command line tool turning the light off.
 * **webhook** (default); provides access to USB, or Bluetooth, devices via webhooks.
 
 ## Changes
+
+**Version 0.2.1**
+
+* Removed the `DeviceIdentifier` trait, and `Device` now returns a String.
 
 **Version 0.2.0**
 

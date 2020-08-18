@@ -3,27 +3,19 @@ Implementation of the Device trait for webhook connected lights.
 
 */
 
-use crate::{Device, DeviceIdentifier, Pattern, SolidColor};
+use crate::{Device, Pattern, SolidColor};
 use reqwest::blocking::Client;
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
 
 // ------------------------------------------------------------------------------------------------
 // Public Types
 // ------------------------------------------------------------------------------------------------
 
 ///
-/// The device identifier for a webhook connected light.
-///
-#[derive(Clone, Debug)]
-pub struct WebhookDeviceID(String);
-
-///
 /// The device implementation for a webhook connected light.
 ///
 #[derive(Clone, Debug)]
 pub struct WebhookDevice {
-    id: WebhookDeviceID,
+    id: String,
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -34,8 +26,13 @@ pub struct WebhookDevice {
 /// Return a device implementation for a webhook connected light.
 ///
 pub fn new_device_for(device_id: &str) -> crate::error::Result<impl Device> {
-    let device_id = WebhookDeviceID::from_str(device_id)?;
-    Ok(WebhookDevice { id: device_id })
+    if !device_id.is_empty() && device_id.chars().all(|c| c.is_ascii_hexdigit()) {
+        Ok(WebhookDevice {
+            id: device_id.to_string(),
+        })
+    } else {
+        Err(crate::error::ErrorKind::InvalidDeviceID.into())
+    }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -48,31 +45,9 @@ const API_V1: &str = "https://api.luxafor.com/webhook/v1/actions";
 // Implementations
 // ------------------------------------------------------------------------------------------------
 
-impl Display for WebhookDeviceID {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl DeviceIdentifier for WebhookDeviceID {}
-
-impl FromStr for WebhookDeviceID {
-    type Err = crate::error::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if !s.is_empty() && s.chars().all(|c| c.is_ascii_hexdigit()) {
-            Ok(Self(s.to_string()))
-        } else {
-            Err(crate::error::ErrorKind::InvalidDeviceID.into())
-        }
-    }
-}
-
-// ------------------------------------------------------------------------------------------------
-
 impl Device for WebhookDevice {
-    fn id(&self) -> &dyn DeviceIdentifier {
-        &self.id
+    fn id(&self) -> String {
+        self.id.clone()
     }
 
     fn turn_off(&self) -> crate::error::Result<()> {
