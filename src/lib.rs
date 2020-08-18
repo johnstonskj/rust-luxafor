@@ -14,7 +14,7 @@ for the manipulation of the light state.
 The following example shows a function that sets the light to a solid red color. It demonstrates
 the use of a USB connected device.
 
-```rust,no_run
+```rust,ignore
 use luxafor::usb_hid::USBDeviceDiscovery;
 use luxafor::{Device, SolidColor};
 use luxafor::error::Result;
@@ -29,7 +29,7 @@ fn set_do_not_disturb() -> Result<()> {
 
 The following shows the same function but using the webhook connection.
 
-```rust,no_run
+```rust,ignore
 use luxafor::webhook::new_device_for;
 use luxafor::{Device, SolidColor};
 use luxafor::error::Result;
