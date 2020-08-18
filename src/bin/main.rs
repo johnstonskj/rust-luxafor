@@ -45,6 +45,8 @@ pub(crate) enum SubCommand {
     Off,
 }
 
+const DEVICE_CONNECTION_USB: &str = "usb";
+
 fn main() -> Result<(), Box<dyn Error>> {
     let args = CommandLine::from_args();
 
@@ -59,7 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .init();
 
-    if args.device == "usb" {
+    if args.device == DEVICE_CONNECTION_USB {
         let discovery = USBDeviceDiscovery::new()?;
         let device = discovery.device()?;
         debug!("USB device: '{}'", device.id());
