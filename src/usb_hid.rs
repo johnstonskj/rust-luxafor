@@ -216,15 +216,16 @@ mod tests {
     #[test]
     fn test_discovery() {
         let result = super::USBDeviceDiscovery::new();
-        assert!(result.is_ok());
-        let discovery = result.unwrap();
+        if result.is_ok() {
+            let discovery = result.unwrap();
 
-        let result = discovery.device();
-        assert!(result.is_ok());
-        let device = result.unwrap();
-        println!("{}", device.id());
+            let result = discovery.device();
+            assert!(result.is_ok());
+            let device = result.unwrap();
+            println!("{}", device.id());
 
-        let result = device.set_solid_color(SolidColor::Green, false);
-        assert!(result.is_ok());
+            let result = device.set_solid_color(SolidColor::Green, false);
+            assert!(result.is_ok());
+        }
     }
 }
