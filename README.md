@@ -1,6 +1,6 @@
 # Crate luxafor
 
-Library, and CLI, for [Luxafor](https://luxafor.com/products/) lights via webhooks.
+Library, and CLI, for [Luxafor](https://luxafor.com/products/) lights via webhooks or USB.
 
 ![Rust](https://github.com/johnstonskj/rust-luxafor/workflows/Rust/badge.svg)
 ![Minimum Rust Version](https://img.shields.io/badge/Min%20Rust-1.40-green.svg)
@@ -12,7 +12,7 @@ Library, and CLI, for [Luxafor](https://luxafor.com/products/) lights via webhoo
 This has been tested with the USB connected [flag](https://luxafor.com/flag-usb-busylight-availability-indicator/)
 as well as the [Bluetooth](https://luxafor.com/bluetooth-busy-light-availability-indicator/) lights.
 
-# Examples
+## Examples
 
 The following shows the command line tool setting the color to red.
 
@@ -36,8 +36,19 @@ The following shows the command line tool turning the light off.
  INFO  luxafor > call successful
 ```
 
+## Features
+
+* **command-line**; provides the command line tool `lux`, it is not on by default for library clients.
+* **usb**; provides access to USB connected devices.
+* **webhook** (default); provides access to USB, or Bluetooth, devices via webhooks.
 
 ## Changes
+
+**Version 0.2.0**
+
+* Refactored to provide a new `Device` trait
+* Implemented the trait for webhook connected lights
+* Added a new implementation for HID connected lights
 
 **Version 0.1.0**
 
@@ -46,4 +57,4 @@ The following shows the command line tool turning the light off.
 
 ## TODO
 
-TBD
+* The webhook API is not as rich as the USB, need to find a way to manage this.

@@ -1,7 +1,9 @@
+#[allow(unused_imports)]
 #[macro_use]
 extern crate log;
 
-use luxafor::{set_pattern, set_solid_color, turn_off, DeviceID, Pattern, SolidColor};
+use luxafor::usb_hid::USBDeviceDiscovery;
+use luxafor::{webhook, Device, Pattern, SolidColor};
 use std::error::Error;
 use structopt::StructOpt;
 
@@ -14,7 +16,7 @@ pub(crate) struct CommandLine {
 
     /// The device identifier
     #[structopt(long, short, env = "LUX_DEVICE")]
-    device: DeviceID,
+    device: String,
 
     #[structopt(subcommand)]
     cmd: SubCommand,
@@ -37,7 +39,6 @@ pub(crate) enum SubCommand {
     /// Set the light to a to a pre-defined pattern
     Pattern {
         /// The pattern to set
-        #[structopt(long, short)]
         pattern: Pattern,
     },
     /// Turn the light off
@@ -58,11 +59,23 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .init();
 
+    if args.device == "usb" {
+        let discovery = USBDeviceDiscovery::new()?;
+        let device = discovery.device()?;
+        debug!("USB device: '{}'", device.id());
+        set_lights(args, device)
+    } else {
+        let device_id = args.device.clone();
+        set_lights(args, webhook::new_device_for(&device_id)?)
+    }
+}
+
+fn set_lights(args: CommandLine, device: impl Device) -> Result<(), Box<dyn Error>> {
     match args.cmd {
-        SubCommand::Solid { color } => set_solid_color(args.device, color, false),
-        SubCommand::Blink { color } => set_solid_color(args.device, color, true),
-        SubCommand::Pattern { pattern } => set_pattern(args.device, pattern),
-        SubCommand::Off => turn_off(args.device),
+        SubCommand::Solid { color } => device.set_solid_color(color, false),
+        SubCommand::Blink { color } => device.set_solid_color(color, true),
+        SubCommand::Pattern { pattern } => device.set_pattern(pattern),
+        SubCommand::Off => device.turn_off(),
     }?;
 
     Ok(())

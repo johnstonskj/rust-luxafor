@@ -1,5 +1,7 @@
 /*!
-Library, and CLI, for [Luxafor](https://luxafor.com/products/) lights via webhooks. This has been
+Library, and CLI, for [Luxafor](https://luxafor.com/products/) lights via webhooks or USB.
+
+This has been
 tested with the USB connected [flag](https://luxafor.com/flag-usb-busylight-availability-indicator/)
 as well as the [Bluetooth](https://luxafor.com/bluetooth-busy-light-availability-indicator/) lights.
 
@@ -27,6 +29,18 @@ The following shows the command line tool turning the light off.
  INFO  luxafor > call successful
 ```
 
+The following shows the how to set USB connected lights.
+
+```bash
+❯ lux -d usb solid red
+```
+
+# Features
+
+* **command-line**; provides the command line tool `lux`, it is not on by default for library clients.
+* **usb**; provides access to USB connected devices.
+* **webhook** (default); provides access to USB, or Bluetooth, devices via webhooks.
+
 */
 
 #![warn(
@@ -38,7 +52,7 @@ The following shows the command line tool turning the light off.
     trivial_numeric_casts,
     // ---------- Public
     missing_debug_implementations,
-    //missing_docs,
+    missing_docs,
     unreachable_pub,
     // ---------- Unsafe
     unsafe_code,
@@ -52,22 +66,16 @@ The following shows the command line tool turning the light off.
 #[macro_use]
 extern crate error_chain;
 
+#[allow(unused_imports)]
 #[macro_use]
 extern crate log;
 
-use reqwest::blocking::Client;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 // ------------------------------------------------------------------------------------------------
 // Public Types
 // ------------------------------------------------------------------------------------------------
-
-///
-/// This wraps a simple string and ensures it only contains valid characters.
-///
-#[derive(Clone, Debug)]
-pub struct DeviceID(String);
 
 ///
 /// A color that the light can be set to.
@@ -89,7 +97,14 @@ pub enum SolidColor {
     /// A preset color
     Magenta,
     /// A custom color using standard RGB values
-    Custom { red: u8, green: u8, blue: u8 },
+    Custom {
+        /// The _red_ channel
+        red: u8,
+        /// The _green_ channel
+        green: u8,
+        /// The _blue_ channel
+        blue: u8,
+    },
 }
 
 ///
@@ -112,110 +127,38 @@ pub enum Pattern {
     Synthetic,
 }
 
-// ------------------------------------------------------------------------------------------------
-// Private Types
-// ------------------------------------------------------------------------------------------------
-
-const API_V1: &str = "https://api.luxafor.com/webhook/v1/actions";
-
-// ------------------------------------------------------------------------------------------------
-// Public Functions
-// ------------------------------------------------------------------------------------------------
+///
+/// Trait describing a device identifier, basically you just need to be able to `to_string()` it.
+///
+pub trait DeviceIdentifier: Display {}
 
 ///
-/// Turn the light off.
+/// A trait implemented by different access methods to control a light.
 ///
-pub fn turn_off(device: DeviceID) -> error::Result<()> {
-    set_solid_color(
-        device,
-        SolidColor::Custom {
-            red: 00,
-            green: 00,
-            blue: 00,
-        },
-        false,
-    )
-}
+pub trait Device {
+    ///
+    /// Return the identifier for the device.
+    ///
+    fn id(&self) -> &dyn DeviceIdentifier;
 
-///
-/// Set the color, and blink status,  of the light.
-///
-pub fn set_solid_color(device: DeviceID, color: SolidColor, blink: bool) -> error::Result<()> {
-    info!("Setting the color of device '{}' to {}", device, color);
+    ///
+    /// Turn the light off.
+    ///
+    fn turn_off(&self) -> error::Result<()>;
 
-    let body = if let SolidColor::Custom {
-        red: _,
-        green: _,
-        blue: _,
-    } = color
-    {
-        r#"{
-  "userId": "DID",
-  "actionFields":{
-    "color": "custom",
-    "custom_color": "COLOR"
-  }
-}"#
-        .replace("DID", &device.to_string())
-        .replace("COLOR", &color.to_string())
-    } else {
-        r#"{
-  "userId": "DID",
-  "actionFields":{
-    "color": "COLOR"
-  }
-}"#
-        .replace("DID", &device.to_string())
-        .replace("COLOR", &color.to_string())
-    };
+    ///
+    /// Set the color, and blink status,  of the light.
+    ///
+    fn set_solid_color(&self, color: SolidColor, blink: bool) -> error::Result<()>;
 
-    let url = &format!("{}/{}", API_V1, if blink { "blink" } else { "solid_color" });
-
-    send_request(url, body)
-}
-
-///
-/// Set the pattern displayed by the light.
-///
-pub fn set_pattern(device: DeviceID, pattern: Pattern) -> error::Result<()> {
-    info!("Setting the pattern of device '{}' to {}", device, pattern);
-
-    let body = r#"{
-  "userId": "DID",
-  "actionFields":{
-    "pattern": "PATTERN"
-  }
-}"#
-    .replace("DID", &device.to_string())
-    .replace("PATTERN", &pattern.to_string());
-
-    let url = &format!("{}/{}", API_V1, "pattern");
-
-    send_request(url, body)
+    ///
+    /// Set the pattern displayed by the light.
+    ///
+    fn set_pattern(&self, pattern: Pattern) -> error::Result<()>;
 }
 
 // ------------------------------------------------------------------------------------------------
 // Implementations
-// ------------------------------------------------------------------------------------------------
-
-impl Display for DeviceID {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl FromStr for DeviceID {
-    type Err = error::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if !s.is_empty() && s.chars().all(|c| c.is_ascii_hexdigit()) {
-            Ok(Self(s.to_string()))
-        } else {
-            Err(error::ErrorKind::InvalidDeviceID.into())
-        }
-    }
-}
-
 // ------------------------------------------------------------------------------------------------
 
 impl Display for SolidColor {
@@ -311,36 +254,14 @@ impl FromStr for Pattern {
 }
 
 // ------------------------------------------------------------------------------------------------
-// Private Functions
-// ------------------------------------------------------------------------------------------------
-
-fn send_request(api: &str, body: String) -> error::Result<()> {
-    debug!("Sending to: {}", api);
-    debug!("Sending data: {:?}", body);
-
-    let client = Client::new();
-    let result = client
-        .post(api)
-        .header("Content-Type", "application/json")
-        .body(body)
-        .send()?;
-
-    if result.status().is_success() {
-        info!("call successful");
-        Ok(())
-    } else {
-        let status_code = result.status().as_u16();
-        error!("call failed");
-        error!("{:?}", result.text());
-        Err(error::ErrorKind::UnexpectedError(status_code).into())
-    }
-}
-
-// ------------------------------------------------------------------------------------------------
 // Modules
 // ------------------------------------------------------------------------------------------------
 
-mod error {
+///
+/// Error handling types.
+///
+#[allow(missing_docs)]
+pub mod error {
     error_chain! {
         errors {
             #[doc("The color value supplied was not recognized")]
@@ -357,6 +278,11 @@ mod error {
             InvalidDeviceID {
                 description("The provided device ID was incorrectly formatted")
                 display("The provided device ID was incorrectly formatted")
+            }
+            #[doc("No device was discovered, or the ID did not resolve to a device")]
+            DeviceNotFound {
+                description("No device was discovered, or the ID did not resolve to a device")
+                display("No device was discovered, or the ID did not resolve to a device")
             }
             #[doc("The server indicated an invalid request")]
             InvalidRequest {
@@ -376,3 +302,9 @@ mod error {
         }
     }
 }
+
+#[cfg(feature = "usb")]
+pub mod usb_hid;
+
+#[cfg(feature = "webhook")]
+pub mod webhook;
