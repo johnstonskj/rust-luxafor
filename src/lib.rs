@@ -1,11 +1,44 @@
 /*!
-Library, and CLI, for [Luxafor](https://luxafor.com/products/) lights via webhooks or USB.
+Library, and CLI, for [Luxafor](https://luxafor.com/products/) lights via either USB or webhooks.
 
 This has been
 tested with the USB connected [flag](https://luxafor.com/flag-usb-busylight-availability-indicator/)
 as well as the [Bluetooth](https://luxafor.com/bluetooth-busy-light-availability-indicator/) lights.
 
-# Examples
+
+# API Examples
+
+The following example shows a function that sets the light to a solid red color. It demonstrates
+the use of a USB connected device.
+
+```rust,norun
+use luxafor::usb_hid::USBDeviceDiscovery;
+use luxafor::{Device, SolidColor};
+use luxafor::error::Result;
+
+fn set_do_not_disturb() -> Result<()> {
+    let discovery = USBDeviceDiscovery::new()?;
+    let device = discovery.device()?;
+    println!("USB device: '{}'", device.id());
+    device.set_solid_color(SolidColor::Red, false)
+}
+```
+
+The following shows the same function but using the webhook connection.
+
+```rust,norun
+use luxafor::webhook::new_device_for;
+use luxafor::{Device, SolidColor};
+use luxafor::error::Result;
+
+fn set_do_not_disturb(device_id: &str) -> Result<()> {
+    let device = new_device_for(device_id)?;
+    println!("Webhook device: '{}'", device.id());
+    device.set_solid_color(SolidColor::Red, false)
+}
+```
+
+# CLI Examples
 
 The following shows the command line tool setting the color to red.
 
