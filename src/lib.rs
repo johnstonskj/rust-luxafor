@@ -147,19 +147,23 @@ pub enum SolidColor {
 /// A pattern the light can be set to show.
 #[derive(Clone, Debug)]
 pub enum Pattern {
-    /// A preset pattern
+    /// A preset pattern that cycles between red and blue.
     Police,
-    /// A preset pattern
+    /// A preset pattern that cycles between green,. yellow, and red.
     TrafficLights,
-    /// A preset pattern
+    /// Preset random patterns
     Random(u8),
-    /// A preset pattern (accepted on Windows only)
+    /// A preset pattern
+    #[cfg(target_os = "windows")]
     Rainbow,
-    /// A preset pattern (accepted on Windows only)
+    /// A preset pattern
+    #[cfg(target_os = "windows")]
     Sea,
-    /// A preset pattern (accepted on Windows only)
+    /// A preset pattern
+    #[cfg(target_os = "windows")]
     WhiteWave,
-    /// A preset pattern (accepted on Windows only)
+    /// A preset pattern
+    #[cfg(target_os = "windows")]
     Synthetic,
 }
 
@@ -254,9 +258,13 @@ impl Display for Pattern {
                 Pattern::Police => "police".to_string(),
                 Pattern::TrafficLights => "traffic lights".to_string(),
                 Pattern::Random(n) => format!("random {}", n),
+                #[cfg(target_os = "windows")]
                 Pattern::Rainbow => "rainbow".to_string(),
+                #[cfg(target_os = "windows")]
                 Pattern::Sea => "sea".to_string(),
+                #[cfg(target_os = "windows")]
                 Pattern::WhiteWave => "white wave".to_string(),
+                #[cfg(target_os = "windows")]
                 Pattern::Synthetic => "synthetic".to_string(),
             }
         )
@@ -276,8 +284,13 @@ impl FromStr for Pattern {
             "random 3" => Ok(Pattern::Random(3)),
             "random 4" => Ok(Pattern::Random(4)),
             "random 5" => Ok(Pattern::Random(5)),
+            #[cfg(target_os = "windows")]
+            "rainbow" => Ok(Pattern::Rainbow),
+            #[cfg(target_os = "windows")]
             "sea" => Ok(Pattern::Sea),
+            #[cfg(target_os = "windows")]
             "white wave" => Ok(Pattern::WhiteWave),
+            #[cfg(target_os = "windows")]
             "synthetic" => Ok(Pattern::Synthetic),
             _ => Err(error::ErrorKind::InvalidPattern.into()),
         }
