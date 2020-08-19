@@ -3,7 +3,7 @@
 extern crate log;
 
 use luxafor::usb_hid::USBDeviceDiscovery;
-use luxafor::{webhook, Device, Pattern, SolidColor};
+use luxafor::{webhook, Device, Pattern, SolidColor, Wave};
 use std::error::Error;
 use structopt::StructOpt;
 
@@ -30,16 +30,56 @@ pub(crate) enum SubCommand {
         #[structopt(name = "COLOR")]
         color: SolidColor,
     },
-    /// Set the light to a to a blinking color
-    Blink {
+    /// Set the light to a to a strobing/blinking color
+    Strobe {
         /// The color to set
         #[structopt(name = "COLOR")]
         color: SolidColor,
+
+        /// The speed of each strobe cycle
+        #[structopt(long, short, default_value = "10")]
+        speed: u8,
+
+        /// The number of times to repeat the strobe
+        #[structopt(long, short, default_value = "255")]
+        repeat: u8,
+    },
+    /// Set the light to fade from the current to a new color
+    Fade {
+        /// The color to set
+        #[structopt(name = "COLOR")]
+        color: SolidColor,
+
+        /// The speed of each strobe cycle
+        #[structopt(long, short, default_value = "60")]
+        fade_duration: u8,
+    },
+    /// Set the light to a to a pre-defined wave pattern
+    Wave {
+        /// The color to set
+        #[structopt(name = "COLOR")]
+        color: SolidColor,
+
+        /// The pattern to set
+        #[structopt(default_value = "short")]
+        pattern: Wave,
+
+        /// The speed of each wave cycle
+        #[structopt(long, short, default_value = "30")]
+        speed: u8,
+
+        /// The number of times to repeat the pattern
+        #[structopt(long, short, default_value = "255")]
+        repeat: u8,
     },
     /// Set the light to a to a pre-defined pattern
     Pattern {
         /// The pattern to set
         pattern: Pattern,
+
+        /// The number of times to repeat the pattern
+        #[structopt(long, short, default_value = "255")]
+        repeat: u8,
     },
     /// Turn the light off
     Off,
@@ -74,9 +114,23 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn set_lights(args: CommandLine, device: impl Device) -> Result<(), Box<dyn Error>> {
     match args.cmd {
-        SubCommand::Solid { color } => device.set_solid_color(color, false),
-        SubCommand::Blink { color } => device.set_solid_color(color, true),
-        SubCommand::Pattern { pattern } => device.set_pattern(pattern),
+        SubCommand::Solid { color } => device.set_solid_color(color),
+        SubCommand::Fade {
+            color,
+            fade_duration,
+        } => device.set_fade_to_color(color, fade_duration),
+        SubCommand::Strobe {
+            color,
+            speed,
+            repeat,
+        } => device.set_color_strobe(color, speed, repeat),
+        SubCommand::Wave {
+            color,
+            pattern,
+            speed,
+            repeat,
+        } => device.set_color_wave(color, pattern, speed, repeat),
+        SubCommand::Pattern { pattern, repeat } => device.set_pattern(pattern, repeat),
         SubCommand::Off => device.turn_off(),
     }?;
 

@@ -16,18 +16,20 @@ the use of a USB connected device.
 
 ```rust,ignore
 use luxafor::usb_hid::USBDeviceDiscovery;
-use luxafor::{Device, SolidColor};
+use luxafor::{Device, SolidColor, TargetedDevice};
 use luxafor::error::Result;
 
 fn set_do_not_disturb() -> Result<()> {
     let discovery = USBDeviceDiscovery::new()?;
     let device = discovery.device()?;
     println!("USB device: '{}'", device.id());
+    device.set_specific_led(SpecificLED::AllFront);
     device.set_solid_color(SolidColor::Red, false)
 }
 ```
 
-The following shows the same function but using the webhook connection.
+The following shows the same function but using the webhook connection. Note that the webhook API
+is more limited in the features it exposes; it does not support `set_specific_led` for a start.
 
 ```rust,ignore
 use luxafor::webhook::new_device_for;
@@ -144,7 +146,24 @@ pub enum SolidColor {
 }
 
 ///
+/// Waves produce a pattern that starts at the bottom of the light, fills the light and then
+/// fades out at the top.
+///
+#[derive(Clone, Debug)]
+pub enum Wave {
+    /// A short transition, completed before the next wave starts.
+    Short,
+    /// A long transition, completed before the next wave starts.
+    Long,
+    /// A short transition, which _does not_ complete before the next wave starts.
+    OverlappingShort,
+    /// A long transition, which _does not_ complete before the next wave starts.
+    OverlappingLong,
+}
+
+///
 /// A pattern the light can be set to show.
+///
 #[derive(Clone, Debug)]
 pub enum Pattern {
     /// A preset pattern that cycles between red and blue.
@@ -182,14 +201,63 @@ pub trait Device {
     fn turn_off(&self) -> error::Result<()>;
 
     ///
-    /// Set the color, and blink status,  of the light.
+    /// Set the light to a continuous solid color.
     ///
-    fn set_solid_color(&self, color: SolidColor, blink: bool) -> error::Result<()>;
+    fn set_solid_color(&self, color: SolidColor) -> error::Result<()>;
 
     ///
-    /// Set the pattern displayed by the light.
+    /// Set the light to fade from its current color to a new one.
     ///
-    fn set_pattern(&self, pattern: Pattern) -> error::Result<()>;
+    fn set_fade_to_color(&self, color: SolidColor, fade_duration: u8) -> error::Result<()>;
+
+    ///
+    /// Strobe the light, this will dim and brighten the same color.
+    ///
+    fn set_color_strobe(
+        &self,
+        color: SolidColor,
+        strobe_speed: u8,
+        repeat_count: u8,
+    ) -> error::Result<()>;
+
+    ///
+    /// Set the light to repeat one of a pre-defined set of wave patterns.
+    ///
+    fn set_color_wave(
+        &self,
+        color: SolidColor,
+        wave_pattern: Wave,
+        wave_speed: u8,
+        repeat_count: u8,
+    ) -> error::Result<()>;
+
+    ///
+    /// Set the light to repeat one of a pre-defined set of patterns.
+    ///
+    fn set_pattern(&self, pattern: Pattern, repeat_count: u8) -> error::Result<()>;
+}
+
+///
+/// Denotes which LED in the light should be the target of any device operations.
+///
+#[derive(Clone, Debug)]
+pub enum SpecificLED {
+    /// All supported LEDs
+    All,
+    /// Only the LEDs on the front (tab) of the light
+    AllFront,
+    /// Only the LEDs on the back of the light
+    AllBack,
+    /// Only one specific LED (value: 1..6)
+    Number(u8),
+}
+
+///
+/// Extension trait to allow targeting specific LEDs on the device.
+///
+pub trait TargetedDevice: Device {
+    /// Set the LED to be used for future operations.
+    fn set_specific_led(&mut self, led: SpecificLED) -> error::Result<()>;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -249,6 +317,38 @@ impl FromStr for SolidColor {
 
 // ------------------------------------------------------------------------------------------------
 
+impl Display for Wave {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Wave::Short => "short",
+                Wave::Long => "long",
+                Wave::OverlappingShort => "overlapping short",
+                Wave::OverlappingLong => "overlapping long",
+            }
+        )
+    }
+}
+
+impl FromStr for Wave {
+    type Err = error::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.to_lowercase();
+        match s.as_str() {
+            "short" => Ok(Wave::Short),
+            "long" => Ok(Wave::Long),
+            "overlapping short" => Ok(Wave::OverlappingShort),
+            "overlapping long" => Ok(Wave::OverlappingLong),
+            _ => Err(error::ErrorKind::InvalidPattern.into()),
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+
 impl Display for Pattern {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -298,6 +398,43 @@ impl FromStr for Pattern {
 }
 
 // ------------------------------------------------------------------------------------------------
+
+impl Display for SpecificLED {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                SpecificLED::All => "all".to_string(),
+                SpecificLED::AllFront => "front".to_string(),
+                SpecificLED::AllBack => "back".to_string(),
+                SpecificLED::Number(n) => n.to_string(),
+            }
+        )
+    }
+}
+
+impl FromStr for SpecificLED {
+    type Err = error::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.to_lowercase();
+        match s.as_str() {
+            "all" => Ok(SpecificLED::All),
+            "front" => Ok(SpecificLED::AllFront),
+            "back" => Ok(SpecificLED::AllBack),
+            "1" => Ok(SpecificLED::Number(1)),
+            "2" => Ok(SpecificLED::Number(2)),
+            "3" => Ok(SpecificLED::Number(3)),
+            "4" => Ok(SpecificLED::Number(4)),
+            "5" => Ok(SpecificLED::Number(5)),
+            "6" => Ok(SpecificLED::Number(6)),
+            _ => Err(error::ErrorKind::InvalidLED.into()),
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
 // Modules
 // ------------------------------------------------------------------------------------------------
 
@@ -318,6 +455,11 @@ pub mod error {
                 description("The pattern value supplied was not recognized")
                 display("The pattern value supplied was not recognized")
             }
+            #[doc("The LED number is either invalid or not supported by the connected device")]
+            InvalidLED {
+                description("The LED number is either invalid or not supported by the connected device")
+                display("The LED number is either invalid or not supported by the connected device")
+            }
             #[doc("The provided device ID was incorrectly formatted")]
             InvalidDeviceID {
                 description("The provided device ID was incorrectly formatted")
@@ -337,6 +479,11 @@ pub mod error {
             UnexpectedError(sc: u16) {
                 description("An unexpected HTTP error was returned")
                 display("An unexpected HTTP error was returned: {}", sc)
+            }
+            #[doc("The command is not supported by the current device, or connection to the device")]
+            UnsupportedCommand {
+                description("The command is not supported by the current device, or connection to the device")
+                display("The command is not supported by the current device, or connection to the device")
             }
         }
         foreign_links {

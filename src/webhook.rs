@@ -3,7 +3,7 @@ Implementation of the Device trait for webhook connected lights.
 
 */
 
-use crate::{Device, Pattern, SolidColor};
+use crate::{Device, Pattern, SolidColor, Wave};
 use reqwest::blocking::Client;
 
 // ------------------------------------------------------------------------------------------------
@@ -51,17 +51,14 @@ impl Device for WebhookDevice {
     }
 
     fn turn_off(&self) -> crate::error::Result<()> {
-        self.set_solid_color(
-            SolidColor::Custom {
-                red: 00,
-                green: 00,
-                blue: 00,
-            },
-            false,
-        )
+        self.set_solid_color(SolidColor::Custom {
+            red: 00,
+            green: 00,
+            blue: 00,
+        })
     }
 
-    fn set_solid_color(&self, color: SolidColor, blink: bool) -> crate::error::Result<()> {
+    fn set_solid_color(&self, color: SolidColor) -> crate::error::Result<()> {
         info!("Setting the color of device '{}' to {}", self.id, color);
 
         let body = if let SolidColor::Custom {
@@ -90,13 +87,81 @@ impl Device for WebhookDevice {
             .replace("COLOR", &color.to_string())
         };
 
-        let url = &format!("{}/{}", API_V1, if blink { "blink" } else { "solid_color" });
+        let url = &format!("{}/{}", API_V1, "solid_color");
 
         send_request(url, body)
     }
 
-    fn set_pattern(&self, pattern: Pattern) -> crate::error::Result<()> {
+    fn set_fade_to_color(
+        &self,
+        _color: SolidColor,
+        _fade_duration: u8,
+    ) -> crate::error::Result<()> {
+        Err(crate::error::ErrorKind::UnsupportedCommand.into())
+    }
+
+    fn set_color_strobe(
+        &self,
+        color: SolidColor,
+        _strobe_speed: u8,
+        repeat_count: u8,
+    ) -> crate::error::Result<()> {
+        info!(
+            "Setting the strobe color of device '{}' to {}",
+            self.id, color
+        );
+
+        let body = if let SolidColor::Custom {
+            red: _,
+            green: _,
+            blue: _,
+        } = color
+        {
+            r#"{
+  "userId": "DID",
+  "actionFields":{
+    "repeat": RPT,
+    "color": "custom",
+    "custom_color": "COLOR"
+  }
+}"#
+            .replace("DID", &self.id.to_string())
+            .replace("COLOR", &color.to_string())
+            .replace("RPT", &repeat_count.to_string())
+        } else {
+            r#"{
+  "userId": "DID",
+  "actionFields":{
+    "repeat": RPT,
+    "color": "COLOR"
+  }
+}"#
+            .replace("DID", &self.id.to_string())
+            .replace("COLOR", &color.to_string())
+            .replace("RPT", &repeat_count.to_string())
+        };
+
+        let url = &format!("{}/{}", API_V1, "blink");
+
+        send_request(url, body)
+    }
+
+    fn set_color_wave(
+        &self,
+        _color: SolidColor,
+        _wave_pattern: Wave,
+        _wave_speed: u8,
+        _repeat_count: u8,
+    ) -> crate::error::Result<()> {
+        Err(crate::error::ErrorKind::UnsupportedCommand.into())
+    }
+
+    fn set_pattern(&self, pattern: Pattern, repeat_count: u8) -> crate::error::Result<()> {
         info!("Setting the pattern of device '{}' to {}", self.id, pattern);
+        warn!(
+            "Ignoring repeat count {}, not supported in the webhook API",
+            repeat_count
+        );
 
         let body = r#"{
   "userId": "DID",

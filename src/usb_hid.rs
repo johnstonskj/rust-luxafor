@@ -104,7 +104,7 @@ The serial number is returned as a pair, (high,low) bytes.
 
 */
 
-use crate::{Device, Pattern, SolidColor};
+use crate::{Device, Pattern, SolidColor, SpecificLED, TargetedDevice, Wave};
 use hidapi::{HidApi, HidDevice};
 
 // ------------------------------------------------------------------------------------------------
@@ -123,9 +123,10 @@ pub struct USBDeviceDiscovery {
 /// The device implementation for a USB connected light.
 ///
 #[allow(missing_debug_implementations)]
-pub struct USBDevice<'a> {
-    hid_device: HidDevice<'a>,
+pub struct USBDevice {
+    hid_device: HidDevice,
     id: String,
+    target_led: u8,
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -137,31 +138,29 @@ const LUXAFOR_PRODUCT_ID: u16 = 0xf372;
 
 const HID_REPORT_ID: u8 = 0;
 
+const MODE_SIMPLE: u8 = 0;
 const MODE_SOLID: u8 = 1;
-#[allow(dead_code)]
 const MODE_FADE: u8 = 2;
 const MODE_STROBE: u8 = 3;
-#[allow(dead_code)]
 const MODE_WAVE: u8 = 4;
 const MODE_PATTERN: u8 = 6;
 
-#[allow(dead_code)]
+const SIMPLE_COLOR_OFF: u8 = b'O';
+
 const LED_FRONT_TOP: u8 = 1;
-#[allow(dead_code)]
 const LED_FRONT_MIDDLE: u8 = 2;
-#[allow(dead_code)]
 const LED_FRONT_BOTTOM: u8 = 3;
-#[allow(dead_code)]
 const LED_BACK_TOP: u8 = 4;
-#[allow(dead_code)]
 const LED_BACK_MIDDLE: u8 = 5;
-#[allow(dead_code)]
 const LED_BACK_BOTTOM: u8 = 6;
-#[allow(dead_code)]
 const LED_FRONT_ALL: u8 = 65;
-#[allow(dead_code)]
 const LED_BACK_ALL: u8 = 66;
 const LED_ALL: u8 = 255;
+
+const WAVE_SHORT: u8 = 1;
+const WAVE_LONG: u8 = 2;
+const WAVE_OVERLAPPING_SHORT: u8 = 3;
+const WAVE_OVERLAPPING_LONG: u8 = 4;
 
 const PATTERN_LUXAFOR: u8 = 1;
 const PATTERN_RANDOM_1: u8 = 2;
@@ -186,14 +185,19 @@ impl USBDeviceDiscovery {
     /// Construct a new discovery object, this initializes the USB HID interface and thus can fail.
     ///
     pub fn new() -> crate::error::Result<Self> {
-        let hid_api = HidApi::new()?;
-        Ok(Self { hid_api })
+        match HidApi::new() {
+            Ok(hid_api) => Ok(Self { hid_api }),
+            Err(err) => {
+                error!("Could not connect to USB, error: {:?}", err);
+                Err(crate::error::ErrorKind::DeviceNotFound.into())
+            }
+        }
     }
 
     ///
     /// Return a device, if found, that corresponds to a Luxafor light.
     ///
-    pub fn device(&self) -> crate::error::Result<USBDevice<'_>> {
+    pub fn device(&self) -> crate::error::Result<USBDevice> {
         let result = self.hid_api.open(LUXAFOR_VENDOR_ID, LUXAFOR_PRODUCT_ID);
         match result {
             Ok(hid_device) => USBDevice::new(hid_device),
@@ -207,40 +211,95 @@ impl USBDeviceDiscovery {
 
 // ------------------------------------------------------------------------------------------------
 
-impl<'a> Device for USBDevice<'a> {
+impl Device for USBDevice {
     fn id(&self) -> String {
         self.id.clone()
     }
 
     fn turn_off(&self) -> crate::error::Result<()> {
-        self.set_solid_color(
-            SolidColor::Custom {
-                red: 00,
-                green: 00,
-                blue: 00,
-            },
-            false,
-        )
+        info!("Turning device '{}' off", self.id);
+        self.write(&[HID_REPORT_ID, MODE_SIMPLE, SIMPLE_COLOR_OFF])
     }
 
-    fn set_solid_color(&self, color: SolidColor, blink: bool) -> crate::error::Result<()> {
+    fn set_solid_color(&self, color: SolidColor) -> crate::error::Result<()> {
         info!("Setting the color of device '{}' to {}", self.id, color);
-        let (r, g, b) = match color {
-            SolidColor::Red => (255, 0, 0),
-            SolidColor::Green => (0, 255, 0),
-            SolidColor::Yellow => (255, 255, 0),
-            SolidColor::Blue => (0, 0, 255),
-            SolidColor::White => (255, 255, 255),
-            SolidColor::Cyan => (0, 255, 255),
-            SolidColor::Magenta => (255, 0, 255),
-            SolidColor::Custom { red, green, blue } => (red, green, blue),
-        };
-        let mode = if blink { MODE_STROBE } else { MODE_SOLID };
-        trace!("{} ({:#04x},{:#04x},{:#04x})", mode, r, g, b);
-        self.write(&[HID_REPORT_ID, mode, LED_ALL, r, g, b])
+        let (r, g, b) = self.color_to_bytes(color);
+        self.write(&[HID_REPORT_ID, MODE_SOLID, self.target_led, r, g, b])
     }
 
-    fn set_pattern(&self, pattern: Pattern) -> crate::error::Result<()> {
+    fn set_fade_to_color(&self, color: SolidColor, fade_duration: u8) -> crate::error::Result<()> {
+        info!(
+            "Setting the fade-to color of device '{}' to {}, over {}",
+            self.id, color, fade_duration
+        );
+        let (r, g, b) = self.color_to_bytes(color);
+        self.write(&[
+            HID_REPORT_ID,
+            MODE_FADE,
+            self.target_led,
+            r,
+            g,
+            b,
+            fade_duration,
+        ])
+    }
+
+    fn set_color_strobe(
+        &self,
+        color: SolidColor,
+        strobe_speed: u8,
+        repeat_count: u8,
+    ) -> crate::error::Result<()> {
+        info!(
+            "Setting the device '{}' to strobe {}, at {}, {} times",
+            self.id, color, strobe_speed, repeat_count
+        );
+        let (r, g, b) = self.color_to_bytes(color);
+        self.write(&[
+            HID_REPORT_ID,
+            MODE_STROBE,
+            self.target_led,
+            r,
+            g,
+            b,
+            strobe_speed,
+            0x00,
+            repeat_count,
+        ])
+    }
+
+    fn set_color_wave(
+        &self,
+        color: SolidColor,
+        wave_pattern: Wave,
+        wave_speed: u8,
+        repeat_count: u8,
+    ) -> crate::error::Result<()> {
+        info!(
+            "Setting the device '{}' to wave {}, at {}, {} times",
+            self.id, color, wave_speed, repeat_count
+        );
+        let wave_pattern = match wave_pattern {
+            Wave::Short => WAVE_SHORT,
+            Wave::Long => WAVE_LONG,
+            Wave::OverlappingShort => WAVE_OVERLAPPING_SHORT,
+            Wave::OverlappingLong => WAVE_OVERLAPPING_LONG,
+        };
+        let (r, g, b) = self.color_to_bytes(color);
+        self.write(&[
+            HID_REPORT_ID,
+            MODE_WAVE,
+            wave_pattern,
+            r,
+            g,
+            b,
+            0x00,
+            repeat_count,
+            wave_speed,
+        ])
+    }
+
+    fn set_pattern(&self, pattern: Pattern, repeat_count: u8) -> crate::error::Result<()> {
         info!("Setting the pattern of device '{}' to {}", self.id, pattern);
         let pattern = match pattern {
             Pattern::Police => PATTERN_POLICE,
@@ -261,25 +320,65 @@ impl<'a> Device for USBDevice<'a> {
             #[cfg(target_os = "windows")]
             Pattern::Synthetic => 11,
         };
-        self.write(&[HID_REPORT_ID, MODE_PATTERN, pattern, 255])
+        self.write(&[HID_REPORT_ID, MODE_PATTERN, pattern, repeat_count])
     }
 }
 
-impl<'a> USBDevice<'a> {
-    fn new(hid_device: HidDevice<'a>) -> crate::error::Result<USBDevice<'a>> {
+impl TargetedDevice for USBDevice {
+    fn set_specific_led(&mut self, led: SpecificLED) -> crate::error::Result<()> {
+        self.target_led = match led {
+            SpecificLED::All => LED_ALL,
+            SpecificLED::AllFront => LED_FRONT_ALL,
+            SpecificLED::AllBack => LED_BACK_ALL,
+            SpecificLED::Number(n) => match n {
+                1 => LED_FRONT_BOTTOM,
+                2 => LED_FRONT_MIDDLE,
+                3 => LED_FRONT_TOP,
+                4 => LED_BACK_BOTTOM,
+                5 => LED_BACK_MIDDLE,
+                6 => LED_BACK_TOP,
+                _ => return Err(crate::error::ErrorKind::InvalidLED.into()),
+            },
+        };
+        Ok(())
+    }
+}
+
+impl USBDevice {
+    fn new(hid_device: HidDevice) -> crate::error::Result<USBDevice> {
         let id = format!(
             "{}::{}::{}",
             hid_device
                 .get_manufacturer_string()
+                .unwrap_or(Some("<error>".to_string()))
                 .unwrap_or("<unknown>".to_string()),
             hid_device
                 .get_product_string()
+                .unwrap_or(Some("<error>".to_string()))
                 .unwrap_or("<unknown>".to_string()),
             hid_device
                 .get_serial_number_string()
-                .unwrap_or("<unknown>".to_string())
+                .unwrap_or(Some("<error>".to_string()))
+                .unwrap_or("<unknown>".to_string()),
         );
-        Ok(Self { hid_device, id })
+        Ok(Self {
+            hid_device,
+            id,
+            target_led: LED_ALL,
+        })
+    }
+
+    fn color_to_bytes(&self, color: SolidColor) -> (u8, u8, u8) {
+        match color {
+            SolidColor::Red => (255, 0, 0),
+            SolidColor::Green => (0, 255, 0),
+            SolidColor::Yellow => (255, 255, 0),
+            SolidColor::Blue => (0, 0, 255),
+            SolidColor::White => (255, 255, 255),
+            SolidColor::Cyan => (0, 255, 255),
+            SolidColor::Magenta => (255, 0, 255),
+            SolidColor::Custom { red, green, blue } => (red, green, blue),
+        }
     }
 
     fn write(&self, buffer: &[u8]) -> crate::error::Result<()> {
@@ -293,11 +392,17 @@ impl<'a> USBDevice<'a> {
         );
         let result = self.hid_device.write(buffer);
         match result {
-            Ok(bytes_written) => if bytes_written == buffer.len() {
-                Ok(())
-            } else {
-                error!("Bytes written, {}, did not match buffer length {}", bytes_written, buffer.len());
-                Err(crate::error::ErrorKind::InvalidRequest.into())
+            Ok(bytes_written) => {
+                if bytes_written == buffer.len() {
+                    Ok(())
+                } else {
+                    error!(
+                        "Bytes written, {}, did not match buffer length {}",
+                        bytes_written,
+                        buffer.len()
+                    );
+                    Err(crate::error::ErrorKind::InvalidRequest.into())
+                }
             }
             Err(err) => {
                 error!("Could not write to HID device: {:?}", err);
@@ -326,7 +431,7 @@ mod tests {
             let device = result.unwrap();
             println!("{}", device.id());
 
-            let result = device.set_solid_color(SolidColor::Green, false);
+            let result = device.set_solid_color(SolidColor::Green);
             assert!(result.is_ok());
         }
     }

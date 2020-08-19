@@ -80,6 +80,15 @@ The following shows the command line tool turning the light off.
 
 ## Changes
 
+**Version 02.2.**
+
+* Added HID specification documents to the `usb_hid` module.
+* Added new `Wave` enum
+* Added new methods to `Device`.
+  * Fully supported on USB HID,
+  * Not all are supported on webooks.
+* Added new `TargetedDevice` trait and USB implementation.
+
 **Version 0.2.1**
 
 * Removed the `DeviceIdentifier` trait, and `Device` now returns a String.
