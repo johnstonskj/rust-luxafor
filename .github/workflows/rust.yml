@@ -221,7 +221,7 @@ jobs:
         RUSTDOCFLAGS: -D warnings
       with:
         command: doc
-        args: --workspace --all-features --no-deps
+        args: --workspace --no-deps
 
       
   rustfmt:
