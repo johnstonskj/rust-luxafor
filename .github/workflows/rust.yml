@@ -130,7 +130,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --workspace --benches --all-features --no-fail-fast
+        args: --workspace --benches --no-fail-fast
 
       
   examples:
@@ -159,7 +159,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --workspace --examples --all-features --no-fail-fast
+        args: --workspace --examples --no-fail-fast
 
         
   coverage:   
@@ -184,7 +184,7 @@ jobs:
         uses: actions-rs/tarpaulin@v0.1
         with:
           version: 0.22.0
-          args: --all-features -- --test-threads 1
+          args: -- --test-threads 1
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1.0.2
