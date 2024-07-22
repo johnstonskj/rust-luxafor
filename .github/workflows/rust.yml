@@ -90,16 +90,16 @@ jobs:
         override: true
         
     - uses: Swatinem/rust-cache@v1
+
+    - name: Install libudev (Linux only)
+      run: sudo apt-get install libudev-dev
+      if: matrix.os == 'ubuntu-latest' && matrix.test-features == '--all-features'
       
     - name: Build
       uses: actions-rs/cargo@v1
       with:
         command: build
         args: --workspace ${{ matrix.test-features }}
-
-    - name: Install libudev (Linux only)
-      run: sudo apt-get install libudev-dev
-      if: matrix.os == 'ubuntu-latest' && matrix.test-features == '--all-features'
       
     - name: Test
       uses: actions-rs/cargo@v1
