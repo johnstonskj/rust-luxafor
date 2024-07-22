@@ -96,6 +96,10 @@ jobs:
       with:
         command: build
         args: --workspace ${{ matrix.test-features }}
+
+    - name: Install libudev (Linux only)
+      run: sudo apt-get install libudev-dev
+      if: matrix.os == 'ubuntu-latest' && matrix.test-features == '--all-features'
       
     - name: Test
       uses: actions-rs/cargo@v1
