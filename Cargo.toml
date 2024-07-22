@@ -30,7 +30,15 @@ required-features = ["command-line"]
 log = "0.4.11"
 
 #[feature-dependencies]
-hidapi = { version = "2.2.2", optional = true }
 pretty_env_logger = { version = "0.5.0", optional = true }
 reqwest = { version = "0.12", features = ["blocking"], optional = true }
 structopt = { version = "0.3.14", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+hidapi = { version = "2.2.2", features = ["linux-native"], optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+hidapi = { version = "2.2.2", optional = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+hidapi = { version = "2.2.2", features = ["windows-native"], optional = true }
