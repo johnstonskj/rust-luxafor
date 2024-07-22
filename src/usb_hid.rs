@@ -416,7 +416,7 @@ impl USBDevice {
 // Unit Tests
 // ------------------------------------------------------------------------------------------------
 
-#[cfg(test)]
+#[cfg(device_test)]
 mod tests {
     use crate::{Device, SolidColor};
 
