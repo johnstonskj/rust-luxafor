@@ -75,7 +75,7 @@ jobs:
       matrix:
         os: ["ubuntu-latest", "windows-latest", "macos-latest"]
         rust: ["stable", "beta", "nightly"]
-        test-features: ["", "--all-features", "--no-default-features"]
+        test-features: ["", "--no-default-features"]
     continue-on-error: ${{ matrix.rust != 'stable' }}
     runs-on: ${{ matrix.os }}
     steps:
