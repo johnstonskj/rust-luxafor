@@ -31,7 +31,7 @@ pub fn new_device_for(device_id: &str) -> crate::error::Result<impl Device> {
             id: device_id.to_string(),
         })
     } else {
-        Err(crate::error::ErrorKind::InvalidDeviceID.into())
+        Err(crate::error::Error::InvalidDeviceID)
     }
 }
 
@@ -97,7 +97,7 @@ impl Device for WebhookDevice {
         _color: SolidColor,
         _fade_duration: u8,
     ) -> crate::error::Result<()> {
-        Err(crate::error::ErrorKind::UnsupportedCommand.into())
+        Err(crate::error::Error::UnsupportedCommand)
     }
 
     fn set_color_strobe(
@@ -153,7 +153,7 @@ impl Device for WebhookDevice {
         _wave_speed: u8,
         _repeat_count: u8,
     ) -> crate::error::Result<()> {
-        Err(crate::error::ErrorKind::UnsupportedCommand.into())
+        Err(crate::error::Error::UnsupportedCommand)
     }
 
     fn set_pattern(&self, pattern: Pattern, repeat_count: u8) -> crate::error::Result<()> {
@@ -191,7 +191,8 @@ fn send_request(api: &str, body: String) -> crate::error::Result<()> {
         .post(api)
         .header("Content-Type", "application/json")
         .body(body)
-        .send()?;
+        .send()
+        .map_err(crate::error::Error::from)?;
 
     if result.status().is_success() {
         info!("call successful");
@@ -200,6 +201,6 @@ fn send_request(api: &str, body: String) -> crate::error::Result<()> {
         let status_code = result.status().as_u16();
         error!("call failed");
         error!("{:?}", result.text());
-        Err(crate::error::ErrorKind::UnexpectedError(status_code).into())
+        Err(crate::error::Error::UnexpectedError(status_code))
     }
 }

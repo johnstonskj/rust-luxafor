@@ -101,9 +101,6 @@ The following shows the how to set USB connected lights.
     unused_results,
 )]
 
-#[macro_use]
-extern crate error_chain;
-
 #[allow(unused_imports)]
 #[macro_use]
 extern crate log;
@@ -308,7 +305,7 @@ impl FromStr for SolidColor {
                         blue: u8::from_str_radix(&s[4..5], 16)?,
                     })
                 } else {
-                    Err(error::ErrorKind::InvalidColor.into())
+                    Err(error::Error::InvalidColor)
                 }
             }
         }
@@ -342,7 +339,7 @@ impl FromStr for Wave {
             "long" => Ok(Wave::Long),
             "overlapping short" => Ok(Wave::OverlappingShort),
             "overlapping long" => Ok(Wave::OverlappingLong),
-            _ => Err(error::ErrorKind::InvalidPattern.into()),
+            _ => Err(error::Error::InvalidPattern),
         }
     }
 }
@@ -392,7 +389,7 @@ impl FromStr for Pattern {
             "white wave" => Ok(Pattern::WhiteWave),
             #[cfg(target_os = "windows")]
             "synthetic" => Ok(Pattern::Synthetic),
-            _ => Err(error::ErrorKind::InvalidPattern.into()),
+            _ => Err(error::Error::InvalidPattern),
         }
     }
 }
@@ -429,7 +426,7 @@ impl FromStr for SpecificLED {
             "4" => Ok(SpecificLED::Number(4)),
             "5" => Ok(SpecificLED::Number(5)),
             "6" => Ok(SpecificLED::Number(6)),
-            _ => Err(error::ErrorKind::InvalidLED.into()),
+            _ => Err(error::Error::InvalidLED),
         }
     }
 }
@@ -439,49 +436,128 @@ impl FromStr for SpecificLED {
 // ------------------------------------------------------------------------------------------------
 
 ///
-/// Error handling types.
+/// Provides the crate's Error and Result types as well as helper
+/// functions.
 ///
-#[allow(missing_docs)]
 pub mod error {
-    error_chain! {
-        errors {
-            InvalidColor {
-                description("The color value supplied was not recognized")
-                display("The color value supplied was not recognized")
-            }
-            InvalidPattern {
-                description("The pattern value supplied was not recognized")
-                display("The pattern value supplied was not recognized")
-            }
-            InvalidLED {
-                description("The LED number is either invalid or not supported by the connected device")
-                display("The LED number is either invalid or not supported by the connected device")
-            }
-            InvalidDeviceID {
-                description("The provided device ID was incorrectly formatted")
-                display("The provided device ID was incorrectly formatted")
-            }
-            DeviceNotFound {
-                description("No device was discovered, or the ID did not resolve to a device")
-                display("No device was discovered, or the ID did not resolve to a device")
-            }
-            InvalidRequest {
-                description("The server indicated an invalid request")
-                display("The server indicated an invalid request")
-            }
-            UnexpectedError(sc: u16) {
-                description("An unexpected HTTP error was returned")
-                display("An unexpected HTTP error was returned: {}", sc)
-            }
-            UnsupportedCommand {
-                description("The command is not supported by the current device, or connection to the device")
-                display("The command is not supported by the current device, or connection to the device")
+    use std::fmt::{Debug, Display};
+
+    // ------------------------------------------------------------------------------------------------
+    // Public Types
+    // ------------------------------------------------------------------------------------------------
+
+    ///
+    /// The Error type for this crate.
+    ///
+    #[derive(Debug)]
+    pub enum Error {
+        /// The color value supplied was not recognized
+        InvalidColor,
+        /// The pattern value supplied was not recognized
+        InvalidPattern,
+        /// The LED number is either invalid or not supported by the connected device
+        InvalidLED,
+        /// The provided device ID was incorrectly formatted
+        InvalidDeviceID,
+        /// No device was discovered, or the ID did not resolve to a device
+        DeviceNotFound,
+        /// The server indicated an invalid request
+        InvalidRequest,
+        /// An unexpected HTTP error was returned
+        UnexpectedError(u16),
+        /// The command is not supported by the current device, or connection to the device
+        UnsupportedCommand,
+        /// An error was signaled by the standard library I/O functions.
+        IoError {
+            /// The source error being wrapped.
+            source: std::io::Error,
+        },
+        /// An error was signaled by the standard library parsing functions.
+        CustomFmt {
+            /// The source error being wrapped.
+            source: std::num::ParseIntError,
+        },
+        /// An error was signaled by the `reqwest` library.
+        #[cfg(feature = "webhook")]
+        Request {
+            /// The source error being wrapped.
+            source: reqwest::Error,
+        },
+        /// An error was signaled by the standard library fmt functions.
+        Fmt {
+            /// The source error being wrapped.
+            source: std::fmt::Error,
+        },
+    }
+
+    ///
+    /// A Result type that specifically uses this crate's Error.
+    ///
+    pub type Result<T> = std::result::Result<T, Error>;
+
+    // ------------------------------------------------------------------------------------------------
+    // Implementations
+    // ------------------------------------------------------------------------------------------------
+
+    impl Display for Error {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(
+                f,
+                "{}",
+                match self {
+                    Self::InvalidColor => "The color value supplied was not recognized".to_string(),
+                    Self::InvalidPattern => "The pattern value supplied was not recognized".to_string(),
+                    Self::InvalidLED => "The LED number is either invalid or not supported by the connected device".to_string(),
+                    Self::InvalidDeviceID => "The provided device ID was incorrectly formatted".to_string(),
+                    Self::DeviceNotFound => "No device was discovered, or // TODO: he ID did not resolve to a device".to_string(),
+                    Self::InvalidRequest => "The server indicated an invalid request".to_string(),
+                    Self::UnexpectedError(status_code)=>format!("An unexpected HTTP error was returned: {status_code}"),
+                    Self::UnsupportedCommand => "The command is not supported by the current device, or connection to the device".to_string(),
+                    Self::IoError{source} => format!("An I/O error occurred; source: {source}"),
+                    Self::CustomFmt { source } => format!("A parsing error occurred; source: {source}"),
+                    #[cfg(feature = "webhook")]
+                    Self::Request { source } => format!("An HTTP request error occurred; source: {source}"),
+                    Self::Fmt { source } => format!("An formatting error occurred; source: {source}"),
+                }
+            )
+        }
+    }
+
+    impl std::error::Error for Error {
+        fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+            match self {
+                Error::IoError { source } => Some(source),
+                Error::CustomFmt { source } => Some(source),
+                #[cfg(feature = "webhook")]
+                Error::Request { source } => Some(source),
+                Error::Fmt { source } => Some(source),
+                _ => None,
             }
         }
-        foreign_links {
-            CustomFmt(::std::num::ParseIntError);
-            Request(::reqwest::Error);
-            Fmt(::std::fmt::Error);
+    }
+
+    impl From<std::io::Error> for Error {
+        fn from(source: std::io::Error) -> Self {
+            Self::IoError { source }
+        }
+    }
+
+    impl From<std::num::ParseIntError> for Error {
+        fn from(source: std::num::ParseIntError) -> Self {
+            Self::CustomFmt { source }
+        }
+    }
+
+    #[cfg(feature = "webhook")]
+    impl From<reqwest::Error> for Error {
+        fn from(source: reqwest::Error) -> Self {
+            Self::Request { source }
+        }
+    }
+
+    impl From<std::fmt::Error> for Error {
+        fn from(source: std::fmt::Error) -> Self {
+            Self::Fmt { source }
         }
     }
 }

@@ -189,7 +189,7 @@ impl USBDeviceDiscovery {
             Ok(hid_api) => Ok(Self { hid_api }),
             Err(err) => {
                 error!("Could not connect to USB, error: {:?}", err);
-                Err(crate::error::ErrorKind::DeviceNotFound.into())
+                Err(crate::error::Error::DeviceNotFound)
             }
         }
     }
@@ -203,7 +203,7 @@ impl USBDeviceDiscovery {
             Ok(hid_device) => USBDevice::new(hid_device),
             Err(err) => {
                 error!("Could not open HID device: {:?}", err);
-                Err(crate::error::ErrorKind::DeviceNotFound.into())
+                Err(crate::error::Error::DeviceNotFound)
             }
         }
     }
@@ -337,7 +337,7 @@ impl TargetedDevice for USBDevice {
                 4 => LED_BACK_BOTTOM,
                 5 => LED_BACK_MIDDLE,
                 6 => LED_BACK_TOP,
-                _ => return Err(crate::error::ErrorKind::InvalidLED.into()),
+                _ => return Err(crate::error::Error::InvalidLED),
             },
         };
         Ok(())
@@ -401,12 +401,12 @@ impl USBDevice {
                         bytes_written,
                         buffer.len()
                     );
-                    Err(crate::error::ErrorKind::InvalidRequest.into())
+                    Err(crate::error::Error::InvalidRequest)
                 }
             }
             Err(err) => {
                 error!("Could not write to HID device: {:?}", err);
-                Err(crate::error::ErrorKind::InvalidRequest.into())
+                Err(crate::error::Error::InvalidRequest)
             }
         }
     }

@@ -80,29 +80,33 @@ The following shows the command line tool turning the light off.
 
 ## Changes
 
-**Version 0.2.2**
+### Version 0.3.0
 
-* Added HID specification documents to the `usb_hid` module.
-* Added new `Wave` enum
-* Added new methods to `Device`.
+* Build: Updated dependency versions.
+* Refactor: Using own, explicit, Error type.
+
+### Version 0.2.2
+
+* Documentation: Added HID specification documents to the `usb_hid` module.
+* Feature: Added new `Wave` enum
+* Feature: Added new methods to `Device`.
   * Fully supported on USB HID,
   * Not all are supported on webooks.
-* Added new `TargetedDevice` trait and USB implementation.
+* Feature: Added new `TargetedDevice` trait and USB implementation.
 
-**Version 0.2.1**
+### Version 0.2.1
 
-* Removed the `DeviceIdentifier` trait, and `Device` now returns a String.
+* Feature: Removed the `DeviceIdentifier` trait, and `Device` now returns a String.
 
-**Version 0.2.0**
+### Version 0.2.0
 
-* Refactored to provide a new `Device` trait
-* Implemented the trait for webhook connected lights
-* Added a new implementation for HID connected lights
+* Refactor: To provide a new `Device` trait
+* Feature: Implemented the trait for webhook connected lights
+* Feature: Added a new implementation for HID connected lights
 
-**Version 0.1.0**
+### Version 0.1.0
 
 * Initial commit, supports flag and bluetooth lights.
-
 
 ## TODO
 
