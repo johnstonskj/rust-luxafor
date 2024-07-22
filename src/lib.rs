@@ -445,42 +445,34 @@ impl FromStr for SpecificLED {
 pub mod error {
     error_chain! {
         errors {
-            #[doc("The color value supplied was not recognized")]
             InvalidColor {
                 description("The color value supplied was not recognized")
                 display("The color value supplied was not recognized")
             }
-            #[doc("The pattern value supplied was not recognized")]
             InvalidPattern {
                 description("The pattern value supplied was not recognized")
                 display("The pattern value supplied was not recognized")
             }
-            #[doc("The LED number is either invalid or not supported by the connected device")]
             InvalidLED {
                 description("The LED number is either invalid or not supported by the connected device")
                 display("The LED number is either invalid or not supported by the connected device")
             }
-            #[doc("The provided device ID was incorrectly formatted")]
             InvalidDeviceID {
                 description("The provided device ID was incorrectly formatted")
                 display("The provided device ID was incorrectly formatted")
             }
-            #[doc("No device was discovered, or the ID did not resolve to a device")]
             DeviceNotFound {
                 description("No device was discovered, or the ID did not resolve to a device")
                 display("No device was discovered, or the ID did not resolve to a device")
             }
-            #[doc("The server indicated an invalid request")]
             InvalidRequest {
                 description("The server indicated an invalid request")
                 display("The server indicated an invalid request")
             }
-            #[doc("An unexpected HTTP error was returned")]
             UnexpectedError(sc: u16) {
                 description("An unexpected HTTP error was returned")
                 display("An unexpected HTTP error was returned: {}", sc)
             }
-            #[doc("The command is not supported by the current device, or connection to the device")]
             UnsupportedCommand {
                 description("The command is not supported by the current device, or connection to the device")
                 display("The command is not supported by the current device, or connection to the device")
